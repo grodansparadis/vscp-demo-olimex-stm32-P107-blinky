@@ -1,0 +1,9 @@
+# Copy to blinky_local.cmake (not committed) and edit. Every BLINKY_*
+# setting in main/vscp-projdefs.h can be set here. Delete the build
+# directory (or build/CMakeCache.txt) after a change.
+set(BLINKY_DEFINES
+    "BLINKY_ENABLE_MQTT=1"
+    "BLINKY_MQTT_BROKER=\"192.168.1.9\""
+    # "BLINKY_IP=\"192.168.1.70\""
+    # "BLINKY_GATEWAY=\"192.168.1.1\""
+    CACHE STRING "" FORCE)
