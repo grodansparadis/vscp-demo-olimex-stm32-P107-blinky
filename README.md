@@ -10,6 +10,7 @@ The transports are selected in [main/vscp-projdefs.h](main/vscp-projdefs.h) and 
 | UDP | `BLINKY_ENABLE_UDP` | On. Port 33333, events sent to 255.255.255.255 (broadcast) | [VSCP frames](https://grodansparadis.github.io/vscp-doc-spec/#/./vscp_over_udp), one per datagram, not encrypted |
 | Multicast | `BLINKY_ENABLE_MULTICAST` | On. Group 224.0.23.158, port 44444 | [VSCP frames](https://grodansparadis.github.io/vscp-doc-spec/#/./vscp_multicast) on the VSCP multicast group |
 | MQTT | `BLINKY_ENABLE_MQTT` | Off; set the broker | [VSCP JSON events](https://grodansparadis.github.io/vscp-doc-spec/#/./vscp_over_mqtt), published on `vscp/{guid}/{class}/{type}`, received on `vscp/{guid}/in` |
+| CAN4VSCP gateway | `BLINKY_ENABLE_CAN` | On. 125 kbit/s | [VSCP Level I events on CAN](https://grodansparadis.github.io/vscp-doc-spec/#/./vscp_over_can), between the CAN bus and the IP transports (see below) |
 
 Events received over any of them are handled by the node (register read/write and the other protocol events) and run through the decision matrix. Events from the node are sent over all of them.
 
@@ -24,7 +25,7 @@ Events received over any of them are handled by the node (register read/write an
 | Button | WKUP, PA0 | The Blinky button (pressed = high) |
 | EEPROM | 24LC256 on I2C1, PB8 SCL / PB9 SDA (remapped) | Saved registers. Any address 0x50-0x57 |
 | Log | RS232 connector (USART2, PD5/PD6 remapped) | 115200 8N1. Use an RS232-level adapter; a TTL-level USB serial adapter gives garbage |
-| CAN | Transceiver on PD0 RX / PD1 TX (CAN1, remapped) | Not used by the demo |
+| CAN | Transceiver on PD0 RX / PD1 TX (CAN1, remapped) | The CAN4VSCP gateway |
 | Debug | 20 pin JTAG connector | ULINK-ME, or any JTAG/SWD probe that OpenOCD supports |
 
 The node also works without an Ethernet link (LED, button, counter, saved registers). The Ethernet MAC is set up at start without waiting for a link; when the link comes up, auto-negotiation is done and the network is started.
@@ -69,6 +70,9 @@ cmake -B build "-DBLINKY_DEFINES=BLINKY_ENABLE_MQTT=1;BLINKY_MQTT_BROKER=\"192.1
 | Setting | Default | |
 | --- | --- | --- |
 | `BLINKY_ENABLE_LINK`, `_UDP`, `_MULTICAST`, `_MQTT` | 1, 1, 1, 0 | Transports |
+| `BLINKY_ENABLE_CAN` | 1 | CAN4VSCP gateway |
+| `BLINKY_CAN_BITRATE` | 125000 | 125000 (the CAN4VSCP standard), 250000, 500000 or 1000000. 87.5 % sample point |
+| `BLINKY_CAN_LOOPBACK` | 0 | Test mode: the CAN controller gets its own frames and sends nothing on the bus |
 | `BLINKY_PHY` | `BLINKY_PHY_AUTO` | Ethernet PHY: `BLINKY_PHY_LAN8710A` (revision E), `BLINKY_PHY_KS8721` (older revisions) or `BLINKY_PHY_AUTO` (finds either). The log says so if the PHY found is not the one selected |
 | `BLINKY_IP` | "" | Static IPv4 address; empty = DHCP. Also `BLINKY_NETMASK`, `BLINKY_GATEWAY` |
 | `BLINKY_LINK_PORT` | 9598 | |
@@ -95,8 +99,25 @@ IP address 192.168.1.70
 VSCP link protocol server on port 9598 (3 clients)
 UDP: port 33333, events to 255.255.255.255
 Multicast: group 224.0.23.158 port 44444
+CAN4VSCP gateway: 125000 bit/s on PD0/PD1
 SNTP: time set
 ```
+
+## CAN4VSCP gateway
+
+The board connects a [CAN4VSCP](https://grodansparadis.github.io/vscp-doc-spec/#/./vscp_over_can) bus (VSCP Level I events on CAN, 29-bit identifier: priority, class, type and the nickname of the sender) with the IP transports:
+
+| Direction | What |
+| --- | --- |
+| CAN → IP | Every frame on the bus is sent as a VSCP event over all IP transports (link protocol clients, UDP, multicast, MQTT). Its GUID is the interface GUID: the GUID of the node with the nickname of the CAN node in the last byte (`FF:FF:FF:FF:FF:FF:FF:FE:<MAC>:00:<nickname>`). The events are also given to the Blinky node, so its decision matrix can react to buttons on the bus |
+| IP → CAN | Level I events (class 0-511) received from the IP transports are sent on the bus. Level I events over Level II (class 512-1023, the GUID of the destination in data bytes 0-15) are sent without the GUID, so a client can read and write the registers of the nodes on the bus |
+| Node → CAN | The Level I events of the Blinky node (ON, OFF, button events, register read/write answers) are also sent on the bus, with its nickname (register 0x91, default 0x10). It is a node on the CAN segment too |
+
+Frames that came from the bus are never sent back on it. The link protocol `interface list` command shows the bus as interface 1.
+
+Connect CAN_H, CAN_L and GND of the board's CAN connector to the bus; the bus needs 120 Ω between CAN_H and CAN_L at both ends. Without other nodes on the bus the frames are not acknowledged and are dropped.
+
+To test the gateway without a bus, build with `BLINKY_CAN_LOOPBACK=1`: the CAN controller then receives its own frames (as from nickname 0x10) and sends nothing. `tools/blinky_test.py --host <ip> canloop` checks node events, client events and Level I over Level II events through CAN and back. In this test mode the node's own answers also come back from "CAN", so run the other tests with a normal build.
 
 ## The node
 
@@ -211,6 +232,7 @@ tools/blinky_test.py --host 192.168.1.70 udp
 tools/blinky_test.py multicast
 tools/blinky_test.py --host 192.168.1.70 --broker 192.168.1.9 mqtt
 tools/blinky_test.py --host 192.168.1.70 --broker 192.168.1.9 all
+tools/blinky_test.py --host 192.168.1.70 canloop    # build with BLINKY_CAN_LOOPBACK=1
 ```
 
 ## Layout
@@ -227,6 +249,7 @@ tools/blinky_test.py --host 192.168.1.70 --broker 192.168.1.9 all
 | `main/link_server.c` | VSCP link protocol server (lwIP raw TCP) |
 | `main/udp_transport.c` | UDP and multicast (lwIP raw UDP, IGMP) |
 | `main/mqtt_transport.c` | MQTT (lwIP MQTT client) |
+| `main/can_gateway.c` | CAN4VSCP gateway (CAN1, HAL CAN) |
 | `main/lwipopts.h` | lwIP settings (no RTOS, sized for 64 KB RAM) |
 | `main/stm32f1xx_hal_conf.h` | HAL settings (LAN8710A PHY registers) |
 | `tools/blinky_test.py` | Test script |

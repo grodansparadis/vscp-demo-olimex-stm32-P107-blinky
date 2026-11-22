@@ -89,6 +89,12 @@ vscp_core_set_time(uint64_t unix_ns)
   s_time_offset_ns = (int64_t) (unix_ns - (uint64_t) millis() * 1000000ull);
 }
 
+uint16_t
+vscp_core_nickname(void)
+{
+  return s_fw.nickname;
+}
+
 const uint8_t *
 vscp_core_guid(void)
 {
@@ -338,6 +344,7 @@ cb_send_event(vscp_frmw2_firmware_context_t *pctx, vscp_event_t *pev)
   link_server_send_event(pev);
   udp_transport_send_event(pev);
   mqtt_transport_send_event(pev);
+  can_gateway_send_event(pev); // Level I events also on the CAN bus
   return VSCP_ERROR_SUCCESS;
 }
 
@@ -622,6 +629,13 @@ vscp_core_work(void)
 {
   vscp_event_t *pev = NULL;
   if (vscp_fifo_read(&s_queue, &pev)) {
+    // Gateway: events from the IP transports also go on the CAN bus
+    if (BLINKY_OBID_FROM_CAN == pev->obid) {
+      pev->obid = 0;
+    }
+    else {
+      can_gateway_send_event(pev);
+    }
     // Protocol events (register read/write, ...) and the decision matrix
     vscp_frmw2_work(&s_fw, pev);
     vscp_fwhlp_deleteEvent(&pev);

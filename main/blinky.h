@@ -201,11 +201,28 @@ millis(void);
 
 // Each one copies the event if it wants it; the caller keeps ownership.
 void
+can_gateway_send_event(const vscp_event_t *pev);
+void
 link_server_send_event(const vscp_event_t *pev);
 void
 udp_transport_send_event(const vscp_event_t *pev);
 void
 mqtt_transport_send_event(const vscp_event_t *pev);
+
+// CAN4VSCP gateway: started at once (not on the network), work from the main loop
+void
+can_gateway_init(void);
+void
+can_gateway_work(void);
+
+// obid of an event that came from the CAN bus (it is not sent back on the bus)
+#define BLINKY_OBID_FROM_CAN 0xC4A0C4A0u
+
+/*!
+  @return The nickname of the node (also its nickname on the CAN bus)
+*/
+uint16_t
+vscp_core_nickname(void);
 
 // Start (when the node has an IP address) and work (main loop)
 void

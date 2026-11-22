@@ -33,6 +33,20 @@
 #ifndef BLINKY_ENABLE_MQTT
 #define BLINKY_ENABLE_MQTT 0 // VSCP JSON events over MQTT (set the broker below)
 #endif
+#ifndef BLINKY_ENABLE_CAN
+#define BLINKY_ENABLE_CAN 1 // CAN4VSCP gateway (CAN1 on PD0/PD1)
+#endif
+
+// ---------------------------------------------------------------------------
+//                                   CAN
+// ---------------------------------------------------------------------------
+
+#ifndef BLINKY_CAN_BITRATE
+#define BLINKY_CAN_BITRATE 125000 // CAN4VSCP standard. 125000, 250000, 500000 or 1000000
+#endif
+#ifndef BLINKY_CAN_LOOPBACK
+#define BLINKY_CAN_LOOPBACK 0 // 1 = test: the CAN controller receives its own frames, nothing on the bus
+#endif
 
 // ---------------------------------------------------------------------------
 //                              Ethernet PHY

@@ -77,7 +77,7 @@ set(LWIP ${lwip_SOURCE_DIR}/src)
 file(GLOB LWIP_CORE ${LWIP}/core/*.c ${LWIP}/core/ipv4/*.c)
 
 set(HAL_MODULES hal hal_cortex hal_rcc hal_rcc_ex hal_gpio hal_gpio_ex hal_flash hal_flash_ex hal_dma hal_eth
-                hal_i2c hal_pwr)
+                hal_i2c hal_pwr hal_can)
 set(HAL_SRC)
 foreach(m ${HAL_MODULES})
   list(APPEND HAL_SRC ${HAL}/Src/stm32f1xx_${m}.c)
@@ -100,6 +100,7 @@ add_executable(vscp-blinky
   main/blinky.c
   main/link_server.c
   main/udp_transport.c
+  main/can_gateway.c
   main/mqtt_transport.c
   main/syscalls.c
   main/stm32f1xx_it.c

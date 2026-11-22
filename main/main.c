@@ -35,11 +35,12 @@ main(void)
          THIS_FIRMWARE_MAJOR_VERSION,
          THIS_FIRMWARE_MINOR_VERSION,
          THIS_FIRMWARE_RELEASE_VERSION);
-  printf("Transports:%s%s%s%s\n",
+  printf("Transports:%s%s%s%s%s\n",
          BLINKY_ENABLE_LINK ? " link" : "",
          BLINKY_ENABLE_UDP ? " udp" : "",
          BLINKY_ENABLE_MULTICAST ? " multicast" : "",
-         BLINKY_ENABLE_MQTT ? " mqtt" : "");
+         BLINKY_ENABLE_MQTT ? " mqtt" : "",
+         BLINKY_ENABLE_CAN ? " can-gateway" : "");
 
   /*
     MAC address: the STM32F107 has none of its own. A locally administered
@@ -62,6 +63,7 @@ main(void)
   eeprom_init();
   network_init(mac);
   vscp_core_init(guid);
+  can_gateway_init();
 
   bool started = false;
   for (;;) {
@@ -77,6 +79,7 @@ main(void)
       udp_transport_work();
       mqtt_transport_work();
     }
+    can_gateway_work();
     vscp_core_work();
   }
 }

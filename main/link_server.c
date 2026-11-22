@@ -298,19 +298,26 @@ cb_set_mask(vscp_link_ctx_t *pctx, vscpEventFilter *pf)
 static uint16_t
 cb_get_interface_count(vscp_link_ctx_t *pctx)
 {
-  return 1;
+  return BLINKY_ENABLE_CAN ? 2 : 1; // The node, the CAN4VSCP bus
 }
 
 static int
 cb_get_interface(vscp_link_ctx_t *pctx, uint16_t idx, vscp_interface_info_t *pif)
 {
-  if (0 != idx) {
+  if (idx >= cb_get_interface_count(pctx)) {
     return VSCP_ERROR_UNKNOWN_ITEM;
   }
-  pif->idx  = idx;
-  pif->type = VSCP_INTERFACE_TYPE_LEVEL2DRV;
+  pif->idx = idx;
   memcpy(pif->guid, vscp_core_guid(), 16);
-  strncpy(pif->description, "Blinky node", sizeof(pif->description) - 1);
+  if (0 == idx) {
+    pif->type = VSCP_INTERFACE_TYPE_LEVEL2DRV;
+    strncpy(pif->description, "Blinky node", sizeof(pif->description) - 1);
+  }
+  else {
+    // Events from the bus: this GUID with the nickname of the CAN node in the last byte
+    pif->type = VSCP_INTERFACE_TYPE_LEVEL1DRV;
+    strncpy(pif->description, "CAN4VSCP bus", sizeof(pif->description) - 1);
+  }
   return VSCP_ERROR_SUCCESS;
 }
 

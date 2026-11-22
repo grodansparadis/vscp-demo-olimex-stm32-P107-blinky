@@ -7,6 +7,8 @@ Test the VSCP Blinky demo node over the network.
   blinky_test.py --host 192.168.1.50 multicast      VSCP frames on the multicast group
   blinky_test.py --broker 192.168.1.9 mqtt          VSCP JSON over MQTT (mosquitto_pub/sub)
   blinky_test.py --host ... --broker ... all
+  blinky_test.py --host 192.168.1.50 canloop        CAN4VSCP gateway, firmware built with
+                                                    BLINKY_CAN_LOOPBACK=1 (STM32-P107)
 
 Only the Python standard library is used (MQTT uses the mosquitto clients).
 The tests change registers (zone, LED, decision matrix row 3) and put them
@@ -297,9 +299,29 @@ def basic_tests(node, full):
     write_reg(node, REG_CONTROL, control)
 
 
+def can_loopback_tests(node):
+    """CAN4VSCP gateway in loopback mode: frames sent on CAN come back as from nickname 0x10."""
+    from_can = lambda e: e["guid"].endswith(":10") and not e["guid"].endswith("00:00")
+    write_reg(node, REG_CONTROL, 0xCE)
+    write_reg(node, REG_STATUS, 0)
+    node.events(1.0)
+    _, evs = write_reg(node, REG_STATUS, 0x02, events=True)
+    evs += node.events(1.0)
+    on = [e for e in evs if e["class"] == CLASS1_INFORMATION and e["type"] == INFO_ON]
+    check("node event (ON) sent on CAN and back", any(from_can(e) for e in on), on)
+    write_reg(node, REG_STATUS, 0)
+    node.events(1.0)
+    node.send(CLASS1_CONTROL, CONTROL_TURNON, [7, 8, 9])
+    e = find([x for x in node.events(1.5) if from_can(x)], CLASS1_CONTROL, CONTROL_TURNON)
+    check("client event to CAN and back", e is not None and e["data"] == [7, 8, 9], e)
+    node.send(512 + CLASS1_PROTOCOL, READ_REGISTER, [0] * 15 + [0x22] + [0x22, REG_CONTROL])
+    e = find([x for x in node.events(1.5) if from_can(x)], CLASS1_PROTOCOL, READ_REGISTER)
+    check("Level I over Level II to CAN (GUID removed)", e is not None and e["data"] == [0x22, REG_CONTROL], e)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("what", choices=["link", "udp", "multicast", "mqtt", "all"])
+    ap.add_argument("what", choices=["link", "udp", "multicast", "mqtt", "all", "canloop"])
     ap.add_argument("--host", help="IP address of the node")
     ap.add_argument("--port", type=int, default=9598)
     ap.add_argument("--user", default="vscp")
@@ -341,6 +363,12 @@ def main():
         print("Multicast, %s:%d" % (args.group, args.mcast_port))
         node = FrameNode(None, args.mcast_port, args.nickname, args.group)
         basic_tests(node, False)
+        node.close()
+
+    if "canloop" in what:
+        print("CAN4VSCP gateway (loopback), %s:%d" % (args.host, args.port))
+        node = LinkNode(args.host, args.port, args.user, args.password, args.nickname)
+        can_loopback_tests(node)
         node.close()
 
     if "mqtt" in what:
