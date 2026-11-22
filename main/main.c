@@ -61,9 +61,36 @@ main(void)
   printf("MAC %02X:%02X:%02X:%02X:%02X:%02X\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
   eeprom_init();
+#if BLINKY_CAN_NODE
+  can_gateway_init(); // Before the node: it sends events when it starts
+  vscp_core_init(guid); // Level I: nickname discovery on the bus
+
+  /*
+    CAN4VSCP node only. STAT2 blinks while the node looks for a nickname
+    and is on when it has one.
+  */
+  uint32_t last_led = 0;
+  bool led          = false;
+  for (;;) {
+    can_gateway_work();
+    vscp_core_work();
+    if (vscp_core_active()) {
+      if (!led) {
+        led = true;
+        board_led_stat2(true);
+        printf("CAN4VSCP node: nickname 0x%02x\n", vscp_core_nickname() & 0xff);
+      }
+    }
+    else if ((HAL_GetTick() - last_led) >= 250) {
+      last_led = HAL_GetTick();
+      led      = !led;
+      board_led_stat2(led);
+    }
+  }
+#else
   network_init(mac);
+  can_gateway_init(); // Before the node: it sends events when it starts
   vscp_core_init(guid);
-  can_gateway_init();
 
   bool started = false;
   for (;;) {
@@ -82,4 +109,5 @@ main(void)
     can_gateway_work();
     vscp_core_work();
   }
+#endif
 }

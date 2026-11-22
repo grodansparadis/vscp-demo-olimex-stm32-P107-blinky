@@ -95,6 +95,12 @@ vscp_core_nickname(void)
   return s_fw.nickname;
 }
 
+bool
+vscp_core_active(void)
+{
+  return FRMW2_STATE_ACTIVE == s_fw.state;
+}
+
 const uint8_t *
 vscp_core_guid(void)
 {
@@ -138,13 +144,23 @@ regs_defaults(void)
   s_regs.version        = REGS_VERSION;
   s_regs.control        = BLINKY_DEFAULT_CONTROL;
   s_regs.blink_interval = BLINKY_DEFAULT_BLINK_INTERVAL;
-  s_regs.nickname       = BLINKY_DEFAULT_NICKNAME;
+#if BLINKY_CAN_NODE
+  s_regs.nickname = 0xffff; // Unassigned: nickname discovery at start
+#else
+  s_regs.nickname = BLINKY_DEFAULT_NICKNAME;
+#endif
 }
 
 static void
 regs_load(void)
 {
   if (storage_load(&s_regs, sizeof(s_regs)) && (REGS_VERSION == s_regs.version)) {
+#if BLINKY_CAN_NODE
+    // 0xFF (also written to register 0x91) is the unassigned 8-bit nickname
+    if (0xff == (s_regs.nickname & 0xff)) {
+      s_regs.nickname = 0xffff;
+    }
+#endif
     return;
   }
   printf("No saved registers, using the defaults\n");
@@ -669,7 +685,9 @@ vscp_core_init(const uint8_t *guid)
 
   // Level II firmware
   memset(&s_fw, 0, sizeof(s_fw));
-  s_fw.level                      = VSCP_LEVEL2;
+  s_fw.level                      = BLINKY_CAN_NODE ? VSCP_LEVEL1 : VSCP_LEVEL2;
+  s_fw.probe_timeout              = VSCP_FRMW2_UNASSIGNED; // Defaults (Level I nickname discovery)
+  s_fw.probe_timeout_count        = VSCP_FRMW2_UNASSIGNED;
   s_fw.state                      = FRMW2_STATE_NONE;
   s_fw.bEnableErrorReporting      = 1;
   s_fw.bInterestedInAllEvents     = 1;

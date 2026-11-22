@@ -18,6 +18,21 @@
 #define _VSCP_PROJDEFS_H_
 
 // ---------------------------------------------------------------------------
+//                                Node type
+// ---------------------------------------------------------------------------
+
+/*
+  0 = Ethernet node (Level II) with the IP transports below and, with
+      BLINKY_ENABLE_CAN, a CAN4VSCP gateway.
+  1 = CAN4VSCP node only (Level I): no Ethernet, no IP transports. The node
+      finds a free nickname on the bus when it starts (nickname discovery)
+      and keeps it in the EEPROM.
+*/
+#ifndef BLINKY_CAN_NODE
+#define BLINKY_CAN_NODE 0
+#endif
+
+// ---------------------------------------------------------------------------
 //                          Transports (1 = on, 0 = off)
 // ---------------------------------------------------------------------------
 
@@ -35,6 +50,20 @@
 #endif
 #ifndef BLINKY_ENABLE_CAN
 #define BLINKY_ENABLE_CAN 1 // CAN4VSCP gateway (CAN1 on PD0/PD1)
+#endif
+
+// A CAN4VSCP node has no IP transports
+#if BLINKY_CAN_NODE
+#undef BLINKY_ENABLE_LINK
+#undef BLINKY_ENABLE_UDP
+#undef BLINKY_ENABLE_MULTICAST
+#undef BLINKY_ENABLE_MQTT
+#undef BLINKY_ENABLE_CAN
+#define BLINKY_ENABLE_LINK      0
+#define BLINKY_ENABLE_UDP       0
+#define BLINKY_ENABLE_MULTICAST 0
+#define BLINKY_ENABLE_MQTT      0
+#define BLINKY_ENABLE_CAN       1
 #endif
 
 // ---------------------------------------------------------------------------

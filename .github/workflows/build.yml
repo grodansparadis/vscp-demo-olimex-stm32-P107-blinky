@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        defines: ["", "BLINKY_ENABLE_MQTT=1"]
+        defines: ["", "BLINKY_ENABLE_MQTT=1", "BLINKY_CAN_NODE=1"]
     steps:
       - uses: actions/checkout@v5
       - name: Install the ARM toolchain

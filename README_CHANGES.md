@@ -12,5 +12,6 @@ tagged, rename **Unreleased** to the version and date, and start a new
 - Transports selected in `vscp-projdefs.h`: VSCP link protocol server (TCP/IP, three clients), VSCP frames over UDP and on the VSCP multicast group, VSCP JSON events over MQTT; lwIP 2.1.3 without an RTOS
 - DHCP or a static address, MAC address and GUID from the unique id of the chip, event time from SNTP
 - The node works without an Ethernet link; the network starts when the link comes up
+- `BLINKY_CAN_NODE`: builds a CAN4VSCP node only (Level I, nickname discovery, no Ethernet)
 - CAN4VSCP gateway (CAN1 on PD0/PD1, 125 kbit/s by default): frames on the bus are sent over the IP transports, Level I events (also over Level II) from the IP transports and the node's own Level I events are sent on the bus; `BLINKY_CAN_LOOPBACK` test mode and a `canloop` test
 - `tools/blinky_test.py` tests a node over each transport

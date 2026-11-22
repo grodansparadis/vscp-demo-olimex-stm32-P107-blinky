@@ -69,6 +69,7 @@ cmake -B build "-DBLINKY_DEFINES=BLINKY_ENABLE_MQTT=1;BLINKY_MQTT_BROKER=\"192.1
 
 | Setting | Default | |
 | --- | --- | --- |
+| `BLINKY_CAN_NODE` | 0 | 1 = build a CAN4VSCP node only (see below) |
 | `BLINKY_ENABLE_LINK`, `_UDP`, `_MULTICAST`, `_MQTT` | 1, 1, 1, 0 | Transports |
 | `BLINKY_ENABLE_CAN` | 1 | CAN4VSCP gateway |
 | `BLINKY_CAN_BITRATE` | 125000 | 125000 (the CAN4VSCP standard), 250000, 500000 or 1000000. 87.5 % sample point |
@@ -118,6 +119,17 @@ Frames that came from the bus are never sent back on it. The link protocol `inte
 Connect CAN_H, CAN_L and GND of the board's CAN connector to the bus; the bus needs 120 Ω between CAN_H and CAN_L at both ends. Without other nodes on the bus the frames are not acknowledged and are dropped.
 
 To test the gateway without a bus, build with `BLINKY_CAN_LOOPBACK=1`: the CAN controller then receives its own frames (as from nickname 0x10) and sends nothing. `tools/blinky_test.py --host <ip> canloop` checks node events, client events and Level I over Level II events through CAN and back. In this test mode the node's own answers also come back from "CAN", so run the other tests with a normal build.
+
+## CAN4VSCP node only
+
+With `BLINKY_CAN_NODE 1` in `vscp-projdefs.h` (or `-DBLINKY_DEFINES=BLINKY_CAN_NODE=1`) the board is built as a plain CAN4VSCP node: no Ethernet, no lwIP, no IP transports (about 40 KB flash, 28 KB RAM). The Blinky functionality, the decision matrix and the EEPROM are the same.
+
+- It is a Level I node: standard registers at 0x80-0xFF, user registers 0x00-0x7F (decision matrix at 0x60), the heartbeat is CLASS1.INFORMATION node heartbeat (20/9), as in the MDF
+- Nickname discovery: with no nickname (0xFF) it probes the bus when it starts and takes the first free nickname, which is kept in the EEPROM. Write 0xFF to register 0x91 and restart to find a new one
+- STAT2 blinks while the node looks for a nickname and is on when it has one
+- The time in the events is the time since the start (no clock)
+
+`BLINKY_CAN_LOOPBACK 1` also works here: with no other node answering, the node takes nickname 1.
 
 ## The node
 

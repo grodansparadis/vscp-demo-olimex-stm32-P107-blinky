@@ -102,7 +102,8 @@ can_gateway_init(void)
     return;
   }
   s_started = true;
-  printf("CAN4VSCP gateway: %lu bit/s on PD0/PD1%s\n",
+  printf("CAN4VSCP %s: %lu bit/s on PD0/PD1%s\n",
+         BLINKY_CAN_NODE ? "node" : "gateway",
          (unsigned long) BLINKY_CAN_BITRATE,
          BLINKY_CAN_LOOPBACK ? " (loopback test mode)" : "");
 }

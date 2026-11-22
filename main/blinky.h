@@ -224,6 +224,12 @@ can_gateway_work(void);
 uint16_t
 vscp_core_nickname(void);
 
+/*!
+  @return true when the node is active (a CAN4VSCP node: it has a nickname)
+*/
+bool
+vscp_core_active(void);
+
 // Start (when the node has an IP address) and work (main loop)
 void
 link_server_start(void);
