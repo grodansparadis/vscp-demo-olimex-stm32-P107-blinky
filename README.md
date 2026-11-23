@@ -30,6 +30,14 @@ Events received over any of them are handled by the node (register read/write an
 
 The node also works without an Ethernet link (LED, button, counter, saved registers). The Ethernet MAC is set up at start without waiting for a link; when the link comes up, auto-negotiation is done and the network is started.
 
+To add EEPROM use the I2C interface and connect a 24LC256 device to PB8 (SCL) and PB9 (SDA). Make sure to set the correct I2C address in the firmware (`BLINKY_EEPROM_ADDRESS`).
+
+![](./images/Olimex-STM32-P107-EEPROM-Connection-Diagram.png)
+
+To add CAN support, connect a CAN transceiver to PD0 (RX) and PD1 (TX) and make sure the firmware is configured with the correct CAN interface and settings (`BLINKY_CAN_INTERFACE`, `BLINKY_CAN_BAUDRATE`).
+
+![](./images/Olimex-STM32-P107-CAN-Connection-Diagram.png)
+
 ## Build and flash
 
 Install an ARM GCC toolchain (`gcc-arm-none-eabi`, `libnewlib-arm-none-eabi`) and CMake. The STM32F1 HAL and CMSIS files from ST, lwIP 2.1.3, vscp-firmware and cJSON are fetched when the project is configured.
@@ -50,6 +58,10 @@ openocd -c "adapter driver cmsis-dap" -c "cmsis_dap_vid_pid 0xc251 0x2721" -c "c
 ```
 
 or with an ST-LINK on the JTAG connector (SWD: SWDIO pin 7, SWCLK pin 9, GND pin 4, NRST pin 15, VTref pin 1):
+
+![](./images/ST-LINK-V2-to-Olimex-SWD-Wiring-Guide.png)
+
+
 
 ```bash
 openocd -f interface/stlink.cfg -f target/stm32f1x.cfg -c "program build/vscp-blinky.elf verify reset exit"
