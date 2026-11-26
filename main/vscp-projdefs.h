@@ -59,11 +59,16 @@
 #undef BLINKY_ENABLE_MULTICAST
 #undef BLINKY_ENABLE_MQTT
 #undef BLINKY_ENABLE_CAN
-#define BLINKY_ENABLE_LINK      1
+#define BLINKY_ENABLE_LINK      0
 #define BLINKY_ENABLE_UDP       0
 #define BLINKY_ENABLE_MULTICAST 0
 #define BLINKY_ENABLE_MQTT      0
-#define BLINKY_ENABLE_CAN       0
+#define BLINKY_ENABLE_CAN       1
+#endif
+
+#if BLINKY_CAN_NODE && (!BLINKY_ENABLE_CAN || BLINKY_ENABLE_LINK || BLINKY_ENABLE_UDP || BLINKY_ENABLE_MULTICAST || \
+                        BLINKY_ENABLE_MQTT)
+#error "BLINKY_CAN_NODE needs CAN and has no IP transports"
 #endif
 
 // ---------------------------------------------------------------------------

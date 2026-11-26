@@ -30,13 +30,13 @@ Events received over any of them are handled by the node (register read/write an
 
 The node also works without an Ethernet link (LED, button, counter, saved registers). The Ethernet MAC is set up at start without waiting for a link; when the link comes up, auto-negotiation is done and the network is started.
 
-To add EEPROM use the I2C interface and connect a 24LC256 device to PB8 (SCL) and PB9 (SDA). Make sure to set the correct I2C address in the firmware (`BLINKY_EEPROM_ADDRESS`).
+To add EEPROM use the I2C interface and connect a 24LC256 device to PB8 (SCL) and PB9 (SDA). The address pins A0-A2 can be set to any address (0x50-0x57); the firmware finds the EEPROM when it starts.
 
-![](./images/Olimex-STM32-P107-EEPROM-Connection-Diagram.png)
+![EEPROM connection diagram](./images/Olimex-STM32-P107-EEPROM-Connection-Diagram.png)
 
-To add CAN support, connect a CAN transceiver to PD0 (RX) and PD1 (TX) and make sure the firmware is configured with the correct CAN interface and settings (`BLINKY_CAN_INTERFACE`, `BLINKY_CAN_BAUDRATE`).
+To add CAN support, connect a CAN transceiver to PD0 (RX) and PD1 (TX) and make sure CAN is on in the firmware (`BLINKY_ENABLE_CAN`, or `BLINKY_CAN_NODE` for a CAN node only) with the bit rate of the bus (`BLINKY_CAN_BITRATE`).
 
-![](./images/Olimex-STM32-P107-CAN-Connection-Diagram.png)
+![CAN transceiver connection diagram](./images/Olimex-STM32-P107-CAN-Connection-Diagram.png)
 
 ## Build and flash
 
@@ -59,7 +59,7 @@ openocd -c "adapter driver cmsis-dap" -c "cmsis_dap_vid_pid 0xc251 0x2721" -c "c
 
 or with an ST-LINK on the JTAG connector (SWD: SWDIO pin 7, SWCLK pin 9, GND pin 4, NRST pin 15, VTref pin 1):
 
-![](./images/ST-LINK-V2-to-Olimex-SWD-Wiring-Guide.png)
+![ST-LINK V2 SWD wiring](./images/ST-LINK-V2-to-Olimex-SWD-Wiring-Guide.png)
 
 
 
