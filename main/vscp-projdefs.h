@@ -188,7 +188,7 @@
 #define THIS_FIRMWARE_ENABLE_ERROR_REPORTING
 
 // VSCP link protocol
-#define THIS_FIRMWARE_TCPIP_LINK_MAX_BUFFER         512u
+#define THIS_FIRMWARE_TCPIP_LINK_MAX_BUFFER         2816u // Event text (retr): a full Level II event (512 data bytes)
 #define THIS_FIRMWARE_TCPIP_LINK_ENABLE_RCVLOOP_CMD 1
 
 #endif // _VSCP_PROJDEFS_H_

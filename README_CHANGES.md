@@ -14,4 +14,6 @@ tagged, rename **Unreleased** to the version and date, and start a new
 - The node works without an Ethernet link; the network starts when the link comes up
 - `BLINKY_CAN_NODE`: builds a CAN4VSCP node only (Level I, nickname discovery, no Ethernet)
 - CAN4VSCP gateway (CAN1 on PD0/PD1, 125 kbit/s by default): frames on the bus are sent over the IP transports, Level I events (also over Level II) from the IP transports and the node's own Level I events are sent on the bus; `BLINKY_CAN_LOOPBACK` test mode and a `canloop` test
+- Level II configuration (CLASS2.PROTOCOL register read/write, also direct) with vscp-firmware 3da4bf2: standard registers at 0xFFFFFF80 can be read and written, unused user registers read as zero; the link protocol carries full Level II events (512 data bytes, was about 88) and command lines up to 1024 characters
 - `tools/blinky_test.py` tests a node over each transport
+- `tools/blinky_test.py level2` tests Level II register read/write

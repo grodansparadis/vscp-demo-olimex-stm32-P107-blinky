@@ -36,6 +36,10 @@
 #define LINK_FIFO_SIZE     16
 #define LINK_RCVLOOP_OK_MS 1000 // '+OK' this often in a receive loop without events
 #define LINK_ROOM_FOR_EVENT 300 // Send buffer room needed before an event is written in a receive loop
+#define LINK_RX_BUFFER      1024 // Longest command line (a 'send' with about 170 data bytes)
+
+// Room an event needs as text (vscp_fwhlp_eventToString), with '\r\n' and '+OK\r\n'
+#define LINK_EVENT_TEXT_SIZE(pev) ((size_t) (pev)->sizeData * 5 + 111 + 2 + 5)
 
 #define LINK_WELCOME                                                                                                   \
   "Welcome to the VSCP Olimex STM32-P107 Blinky demo node\r\n"                                                         \
@@ -49,8 +53,9 @@ typedef struct {
   struct tcp_pcb *pcb;                           // The connection (NULL = free slot)
   int close;                                     // Close the connection
   int output;                                    // Data written, call tcp_output()
-  char buf[THIS_FIRMWARE_TCPIP_LINK_MAX_BUFFER]; // Received text
+  char buf[LINK_RX_BUFFER]; // Received text
   size_t filled;
+  vscp_event_t *pending; // Event that did not fit in the send buffer, sent first
 } client_t;
 
 static client_t s_clients[BLINKY_LINK_MAX_CLIENTS];
@@ -161,7 +166,7 @@ cb_send(vscp_link_ctx_t *pctx, vscp_event_t *pev)
 static int
 cb_chkdata(vscp_link_ctx_t *pctx, uint16_t *pcount)
 {
-  *pcount = LINK_FIFO_SIZE - vscp_fifo_getFree(&pctx->fifoEventsOut);
+  *pcount = LINK_FIFO_SIZE - vscp_fifo_getFree(&pctx->fifoEventsOut) + (NULL != ((client_t *) pctx->user_data)->pending);
   return VSCP_ERROR_SUCCESS;
 }
 
@@ -169,13 +174,27 @@ static int
 cb_clrall(vscp_link_ctx_t *pctx)
 {
   vscp_fifo_clear(&pctx->fifoEventsOut); // Deletes the events
+  vscp_fwhlp_deleteEvent(&((client_t *) pctx->user_data)->pending);
   return VSCP_ERROR_SUCCESS;
 }
 
+/*
+  A Level II event is up to 2.7 KB as text. An event is only handed out when
+  the send buffer has room for it, otherwise it is kept and handed out first
+  the next time (the link protocol would drop it).
+*/
 static int
 cb_retr(vscp_link_ctx_t *pctx, vscp_event_t **ppev)
 {
-  if (!vscp_fifo_read(&pctx->fifoEventsOut, ppev) || (NULL == *ppev)) {
+  client_t *c = (client_t *) pctx->user_data;
+  *ppev       = c->pending;
+  c->pending  = NULL;
+  if ((NULL == *ppev) && (!vscp_fifo_read(&pctx->fifoEventsOut, ppev) || (NULL == *ppev))) {
+    return VSCP_ERROR_RCV_EMPTY;
+  }
+  if ((NULL == c->pcb) || (LINK_EVENT_TEXT_SIZE(*ppev) > tcp_sndbuf(c->pcb))) {
+    c->pending = *ppev;
+    *ppev      = NULL;
     return VSCP_ERROR_RCV_EMPTY;
   }
   pctx->statistics.cntTransmitFrames++;
@@ -383,6 +402,7 @@ client_free(client_t *c)
   printf("Link client %d: disconnected\n", c->link.id);
   c->pcb = NULL;
   vscp_fifo_deinit(&c->link.fifoEventsOut); // Deletes the queued events
+  vscp_fwhlp_deleteEvent(&c->pending);
 }
 
 static void
@@ -473,6 +493,7 @@ server_accept(void *arg, struct tcp_pcb *pcb, err_t err)
   c->close          = 0;
   c->output         = 0;
   c->filled         = 0;
+  c->pending        = NULL;
   c->link.ops       = &s_link_ops;
   c->link.id        = s_next_id++;
   c->link.sock      = c->link.id;

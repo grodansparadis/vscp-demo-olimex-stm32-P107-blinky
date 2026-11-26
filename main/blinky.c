@@ -503,7 +503,7 @@ cb_read_reg(vscp_frmw2_firmware_context_t *pctx, uint16_t page, uint32_t reg, ui
         *pval = s_regs.dm[reg - BLINKY_REG_DM_START];
         break;
       }
-      return VSCP_ERROR_PARAMETER;
+      return VSCP_ERROR_INDEX_OOB; // Not used: reads as zero
   }
   return VSCP_ERROR_SUCCESS;
 }
@@ -569,7 +569,7 @@ cb_write_reg(vscp_frmw2_firmware_context_t *pctx, uint16_t page, uint32_t reg, u
         s_regs.dm[reg - BLINKY_REG_DM_START] = val;
         break;
       }
-      return VSCP_ERROR_PARAMETER;
+      return VSCP_ERROR_INDEX_OOB; // Not used
   }
   regs_changed();
   return VSCP_ERROR_SUCCESS;

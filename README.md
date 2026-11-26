@@ -163,6 +163,13 @@ The STM32F107 has no MAC address of its own. A locally administered address is m
 
 The standard registers are at 0xFFFFFF80 (Level II). The node is a Level II node, but it uses Level I decision matrix rows, as in the MDF, and it also answers CLASS1.PROTOCOL register read/write for nickname 0x10 (the default nickname, saved when it is changed).
 
+Level II configuration (CLASS2.PROTOCOL, 1024):
+
+- Read Register (1024/1) and Write Register (1024/2) with the node's GUID in data bytes 0-15, answered with Read Write Response (1024/3): the start register (4 bytes) and the values, up to 508 registers in one answer. A write is answered with the registers read back
+- Read/Write Register Direct (1024/43, 1024/44) without the GUID
+- User registers at 0x00000000 (as in the table above; unused registers read as zero), the standard registers at 0xFFFFFF80-0xFFFFFFFF (user id, page select and reset can be written), the largest frame the node handles (512) at 0xFFFF0000/0xFFFF0001
+- The link protocol carries full Level II events (512 data bytes) to a client; a command line can be up to 1024 characters (a write of about 170 registers)
+
 Saved registers are written to the 24LC256 EEPROM one second after the last change, so a burst of writes is one save. Without the EEPROM the node works, but changes are lost at a restart.
 
 ### Decision matrix actions
@@ -256,6 +263,7 @@ tools/blinky_test.py --host 192.168.1.70 udp
 tools/blinky_test.py multicast
 tools/blinky_test.py --host 192.168.1.70 --broker 192.168.1.9 mqtt
 tools/blinky_test.py --host 192.168.1.70 --broker 192.168.1.9 all
+tools/blinky_test.py --host 192.168.1.70 level2     # Level II register read/write (link protocol)
 tools/blinky_test.py --host 192.168.1.70 canloop    # build with BLINKY_CAN_LOOPBACK=1
 ```
 

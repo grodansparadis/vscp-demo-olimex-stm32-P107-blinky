@@ -25,8 +25,8 @@ include(FetchContent)
 # vscp-firmware. Use -DFETCHCONTENT_SOURCE_DIR_VSCP_FIRMWARE=<path> for a local checkout.
 FetchContent_Declare(
   vscp_firmware
-  URL https://codeload.github.com/grodansparadis/vscp-firmware/tar.gz/f8bc40d0585df638ef7f742ff25106920acc3277
-  URL_HASH SHA256=d33c3c64f02b4877fd9753cad2834d206028cc3ebdd2afa00621dd21d85de94b
+  URL https://codeload.github.com/grodansparadis/vscp-firmware/tar.gz/3da4bf2649ac8992cd81fae1cd9ae35ef1f9a79c
+  URL_HASH SHA256=9ef5a4bf180430231990c867db41f8f7ab1196cbd588f78bd4a985db0c1d2e08
   SOURCE_SUBDIR __sources_only__
   DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 

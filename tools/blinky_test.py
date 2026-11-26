@@ -7,6 +7,8 @@ Test the VSCP Blinky demo node over the network.
   blinky_test.py --host 192.168.1.50 multicast      VSCP frames on the multicast group
   blinky_test.py --broker 192.168.1.9 mqtt          VSCP JSON over MQTT (mosquitto_pub/sub)
   blinky_test.py --host ... --broker ... all
+  blinky_test.py --host 192.168.1.50 level2         Level II register read/write
+                                                    (CLASS2.PROTOCOL) over the link protocol
   blinky_test.py --host 192.168.1.50 canloop        CAN4VSCP gateway, firmware built with
                                                     BLINKY_CAN_LOOPBACK=1 (STM32-P107)
 
@@ -28,6 +30,9 @@ CLASS1_PROTOCOL = 0
 READ_REGISTER, RW_RESPONSE, WRITE_REGISTER = 9, 10, 11
 CLASS1_INFORMATION, INFO_ON, INFO_OFF = 20, 3, 4
 CLASS1_CONTROL, CONTROL_TURNON = 30, 5
+CLASS2_PROTOCOL = 1024
+L2_READ, L2_WRITE, L2_RW_RESPONSE, L2_READ_DIRECT, L2_WRITE_DIRECT = 1, 2, 3, 43, 44
+L2_STDREG = 0xFFFFFF00  # Level I standard register 0x80 is 0xffffff80
 
 REG_ZONE, REG_STATUS, REG_CONTROL = 0, 2, 3
 REG_COUNTER = 6
@@ -299,6 +304,76 @@ def basic_tests(node, full):
     write_reg(node, REG_CONTROL, control)
 
 
+def l2_response(start):
+    st = list(struct.pack(">I", start))
+    return lambda e: e["class"] == CLASS2_PROTOCOL and e["type"] == L2_RW_RESPONSE and e["data"][:4] == st
+
+
+def l2_read(node, guid, start, count, vtype=L2_READ, wait=2.0):
+    """Level II register read. Returns the values or None."""
+    node.send(CLASS2_PROTOCOL, vtype, list(guid) + list(struct.pack(">IH", start, count)))
+    e = find([x for x in node.events(wait, l2_response(start)) if l2_response(start)(x)], CLASS2_PROTOCOL,
+             L2_RW_RESPONSE)
+    return e["data"][4:] if e else None
+
+
+def l2_write(node, guid, start, values, vtype=L2_WRITE):
+    """Level II register write. Returns the values read back or None."""
+    node.send(CLASS2_PROTOCOL, vtype, list(guid) + list(struct.pack(">I", start)) + list(values))
+    e = find([x for x in node.events(2.0, l2_response(start)) if l2_response(start)(x)], CLASS2_PROTOCOL,
+             L2_RW_RESPONSE)
+    return e["data"][4:] if e else None
+
+
+def level2_tests(node, guid_str):
+    """Level II configuration (CLASS2.PROTOCOL read/write register)."""
+    guid = bytes(int(x, 16) for x in guid_str.split(":"))
+    std = l2_read(node, guid, L2_STDREG + 0x80, 128)
+    check("read the 128 standard registers (0xffffff80)", std is not None and len(std) == 128,
+          "got %r" % (std and len(std)))
+    if std:
+        check("standard registers: GUID at 0xffffffd0", bytes(std[0xD0 - 0x80:0xE0 - 0x80]) == guid)
+        url = bytes(std[0xE0 - 0x80:]).split(b"\0")[0]
+        check("standard registers: MDF URL at 0xffffffe0", url == b"eurosource.se/blinky0.json", url)
+
+    user = l2_read(node, guid, 0, 128)
+    check("read the 128 user registers", user is not None and len(user) == 128)
+    if user:
+        control = read_reg(node, REG_CONTROL)
+        dm = [read_reg(node, DM_ROW3 + i) for i in range(8)]
+        check("user registers as over Level I", user[REG_CONTROL] == control and user[DM_ROW3:DM_ROW3 + 8] == dm,
+              "control %r/%r" % (user[REG_CONTROL], control))
+        check("unused user register reads as zero", user[0x20] == 0)
+
+    full = l2_read(node, guid, 0, 508)
+    check("read 508 registers (a full Level II event)", full is not None and len(full) == 508,
+          "got %r" % (full and len(full)))
+    check("max frame size register (0xffff0000) is 512", l2_read(node, guid, 0xFFFF0000, 2) == [2, 0])
+
+    zone = read_reg(node, REG_ZONE)
+    v = l2_write(node, guid, REG_ZONE, [0x5A, 0xA5])
+    check("write zone and subzone", v == [0x5A, 0xA5], "got %r" % v)
+    check("written value read over Level I", read_reg(node, REG_ZONE) == 0x5A)
+    subzone = user[1] if user else 0
+    l2_write(node, guid, REG_ZONE, [zone or 0, subzone])
+
+    uid = l2_read(node, guid, L2_STDREG + 0x84, 5)
+    v = l2_write(node, guid, L2_STDREG + 0x84, [1, 2, 3, 4, 5])
+    check("write the user id (standard registers 0xffffff84)", v == [1, 2, 3, 4, 5], "got %r" % v)
+    if uid:
+        l2_write(node, guid, L2_STDREG + 0x84, uid)
+
+    other = bytearray(guid)
+    other[15] ^= 0x55
+    check("read for another GUID is not answered", l2_read(node, other, 0, 4, wait=1.0) is None)
+
+    d = l2_read(node, b"", L2_STDREG + 0xD0, 16, L2_READ_DIRECT)
+    check("read register direct (type 43)", d is not None and bytes(d) == guid)
+    v = l2_write(node, b"", REG_ZONE, [0x33], L2_WRITE_DIRECT)
+    check("write register direct (type 44)", v == [0x33], "got %r" % v)
+    l2_write(node, guid, REG_ZONE, [zone or 0])
+
+
 def can_loopback_tests(node):
     """CAN4VSCP gateway in loopback mode: frames sent on CAN come back as from nickname 0x10."""
     from_can = lambda e: e["guid"].endswith(":10") and not e["guid"].endswith("00:00")
@@ -321,7 +396,7 @@ def can_loopback_tests(node):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("what", choices=["link", "udp", "multicast", "mqtt", "all", "canloop"])
+    ap.add_argument("what", choices=["link", "udp", "multicast", "mqtt", "all", "canloop", "level2"])
     ap.add_argument("--host", help="IP address of the node")
     ap.add_argument("--port", type=int, default=9598)
     ap.add_argument("--user", default="vscp")
@@ -337,6 +412,14 @@ def main():
 
     what = ["link", "udp", "multicast", "mqtt"] if args.what == "all" else [args.what]
     guid = args.guid
+
+    if "level2" in what:
+        print("Level II registers over the VSCP link protocol, %s:%d" % (args.host, args.port))
+        node = LinkNode(args.host, args.port, args.user, args.password, args.nickname)
+        guid = node.cmd("ggid").split("\n")[0].strip()
+        node.cmd("clra")
+        level2_tests(node, guid)
+        node.close()
 
     if "link" in what or (("mqtt" in what) and not guid):
         print("VSCP link protocol, %s:%d" % (args.host, args.port))

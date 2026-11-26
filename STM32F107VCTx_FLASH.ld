@@ -36,7 +36,7 @@ _estack = 0x20010000;    /* end of RAM (8-byte aligned) */
 
 /* Generate a link error if heap and stack don't fit into RAM */
 _Min_Heap_Size = 0x2800;  /* VSCP events, cJSON (MQTT) */      /* required amount of heap  */
-_Min_Stack_Size = 0x1000; /* Link protocol line buffers */ /* required amount of stack */
+_Min_Stack_Size = 0x1800; /* Link protocol event text (2.8 KB) */ /* required amount of stack */
 
 /* Specify the memory areas */
 MEMORY
